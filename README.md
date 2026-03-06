@@ -2,12 +2,6 @@
 
 **CNT4007 – Computer Networks | University of Florida**
 
-## Team Members
-- [Name 1]
-- [Name 2]
-- [Name 3]
-
----
 
 ## Project Overview
 
@@ -18,6 +12,8 @@ A simplified BitTorrent implementation in Java supporting:
 - Choking/unchoking with preferred neighbor selection (rate-based)
 - Optimistic unchoking
 - Logging per protocol spec
+
+---
 
 ## File Structure
 
@@ -34,6 +30,50 @@ src/
   Logger.java          ← Log file writer
 ```
 
+---
+
+## Team Split
+
+### NJ — Foundation & Startup
+- `FileManager.java` — reading and writing pieces to disk
+- `peerProcess.java` — startup flow, config loading, peer folder init
+- Making sure the program boots correctly before any messages are exchanged
+
+### Message Handling
+- `PeerConnection.java` — full message loop (request, piece, have, bitfield)
+- `Message.java` — any updates to message building/parsing
+- Broadcasting `have` messages to all neighbors after a piece is downloaded
+
+### Choking/Unchoking
+- `PeerManager.java` — preferred neighbor selection (rate-based)
+- `PeerManager.java` — optimistic unchoking logic
+- Termination logic — detecting when all peers have the complete file
+
+---
+
+## Progress
+
+### Done 
+- Project scaffold and file structure
+- `CommonConfig.java` — parses `Common.cfg`
+- `PeerInfo.java` — parses `PeerInfo.cfg`
+- `Message.java` — all message types + handshake serialization
+- `Bitfield.java` — bitfield data structure
+- `Logger.java` — all required log events
+- `FileManager.java` — `readPiece()`, `writePiece()`, folder creation
+- `peerProcess.java` — startup flow with `FileManager` hooked in
+
+### In Progress 
+- `PeerConnection.java` — handle REQUEST by sending piece back
+- `PeerManager.java` — preferred neighbor + optimistic unchoke timers
+
+### Not Started 
+- `PeerManager.broadcastHave()` — notify all neighbors on piece download
+- Termination — all peers detect when everyone has the file
+- End-to-end testing with real config files
+
+---
+
 ## Config Files (not included in repo)
 
 Place these in your working directory before running:
@@ -41,26 +81,18 @@ Place these in your working directory before running:
 - `PeerInfo.cfg`
 - `peer_[peerID]/[FileName]` — for peers that start with the file
 
+---
+
 ## How to Run
 
 ```bash
 # Compile
 javac src/*.java -d out/
 
-# Start peers (in order listed in PeerInfo.cfg)
+# Start peers in order listed in PeerInfo.cfg
 java -cp out peerProcess 1001
 java -cp out peerProcess 1002
 # ... etc
 ```
 
-## Due Dates
-- Midpoint check: **March 12, 11:59 PM** (500+ compiled lines)
-- Final project: **April 22, 11:59 PM**
-
-## TODO
-- [ ] `FileManager.readPiece()` and `writePiece()`
-- [ ] `PeerManager.recalculatePreferredNeighbors()` — rate-based selection
-- [ ] `PeerManager.recalculateOptimisticNeighbor()`
-- [ ] `PeerConnection` — handle REQUEST by actually sending the piece
-- [ ] `PeerManager.broadcastHave()` — send have to all neighbors on piece download
-- [ ] Termination — all peers detect when everyone has the file
+---
