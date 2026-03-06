@@ -1,0 +1,17 @@
+# Compiled output
+out/
+*.class
+
+# Config and data files (don't commit these)
+Common.cfg
+PeerInfo.cfg
+peer_*/
+log_peer_*.log
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# macOS
+.DS_Store
