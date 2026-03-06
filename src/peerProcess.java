@@ -30,8 +30,10 @@ public class peerProcess {
         // Init logger
         Logger.init(myPeerID);
 
+        FileManager fileMgr = new FileManager(myPeerID, commonCfg);
+
         // Init peer manager (handles choking/unchoking timers, bitfields, etc.)
-        peerManager = new PeerManager(myPeerID, commonCfg, peerList);
+        peerManager = new PeerManager(myPeerID, commonCfg, peerList, fileMgr);
 
         // Connect to all peers that started before us (listed above us in PeerInfo.cfg)
         for (PeerInfo peer : peerList) {

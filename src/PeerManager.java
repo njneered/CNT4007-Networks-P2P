@@ -12,6 +12,7 @@ public class PeerManager {
     private final int myPeerID;
     private final CommonConfig cfg;
     private final List<PeerInfo> peerList;
+    private final FileManager fileMgr;
 
     // Map from peerID -> PeerConnection (one per neighbor)
     private final Map<Integer, PeerConnection> connections = new ConcurrentHashMap<>();
@@ -25,10 +26,11 @@ public class PeerManager {
     // Track which peers have the complete file
     private final Set<Integer> completedPeers = ConcurrentHashMap.newKeySet();
 
-    public PeerManager(int myPeerID, CommonConfig cfg, List<PeerInfo> peerList) {
+    public PeerManager(int myPeerID, CommonConfig cfg, List<PeerInfo> peerList, FileManager fileMgr) {
         this.myPeerID = myPeerID;
         this.cfg      = cfg;
         this.peerList = peerList;
+        this.fileMgr = fileMgr;
 
         // Init our bitfield based on whether we start with the file
         boolean hasFile = peerList.stream()

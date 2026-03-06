@@ -1,56 +1,58 @@
 import java.io.*;
-import java.nio.file.*;
 
-/**
- * Handles reading and writing file pieces to/from disk.
- * Each peer stores files in peer_[peerID]/ directory.
- * TODO: Implement readPiece and writePiece.
- */
-public class FileManager {
+public class FileManager{
 
-    private final String dir;       // e.g. "peer_1001/"
-    private final String fileName;
-    private final long fileSize;
-    private final int pieceSize;
-    private final int totalPieces;
+    private String myFolder;
+    private String filePath;
+    private long totalFileSize;
+    private int chunkSize;
+    private int totalChunks;
+    private RandomAccessFile raf;
 
-    public FileManager(int peerID, CommonConfig cfg) {
-        this.dir         = "peer_" + peerID + "/";
-        this.fileName    = cfg.fileName;
-        this.fileSize    = cfg.fileSize;
-        this.pieceSize   = cfg.pieceSize;
-        this.totalPieces = cfg.totalPieces;
-    }
+    public FileManager(int peerID, CommonConfig cfg) throws IOException{
+        myFolder = "peer_" + peerID + "/";
+        filePath = myFolder + cfg.fileName;
+        totalFileSize = cfg.fileSize;
+        chunkSize = cfg.pieceSize;
+        totalChunks = cfg.totalPieces;
 
-    /**
-     * Read a piece from disk.
-     * @param pieceIndex the piece to read
-     * @return byte array of piece data
-     */
-    public byte[] readPiece(int pieceIndex) throws IOException {
-        // TODO: implement
-        // Hint: open the file with RandomAccessFile, seek to pieceIndex * pieceSize, read pieceSize bytes
-        // (last piece may be smaller)
-        throw new UnsupportedOperationException("readPiece not yet implemented");
-    }
+        // making folder first if it does not exist
+        new File(myFolder).mkdirs();
 
-    /**
-     * Write a received piece to disk.
-     * @param pieceIndex the piece index
-     * @param data       the piece bytes
-     */
-    public void writePiece(int pieceIndex, byte[] data) throws IOException {
-        // TODO: implement
-        // Hint: use RandomAccessFile to write at offset pieceIndex * pieceSize
-        throw new UnsupportedOperationException("writePiece not yet implemented");
-    }
-
-    /** Returns the size in bytes of a given piece (last piece may differ) */
-    public int getPieceSize(int pieceIndex) {
-        if (pieceIndex == totalPieces - 1) {
-            int remainder = (int)(fileSize % pieceSize);
-            return remainder == 0 ? pieceSize : remainder;
+        // then open or create file and reserve the full space
+        raf=new RandomAccessFile(filePath, "rw");
+        if (raf.length() == 0){
+            // reserve spots for all pieces
+            raf.setLength(totalFileSize);
         }
-        return pieceSize;
+    }
+
+    public byte[] readPiece(int pieceIndex) throws IOException{
+        int howManyBytes = getSizeOfThisChunk(pieceIndex);
+        byte[] buf = new byte[howManyBytes];
+        long jumpTo = (long) pieceIndex * chunkSize;
+
+        raf.seek(jumpTo);
+        raf.read(buf);
+        return buf;
+    }
+
+    public void writePiece(int pieceIndex, byte[] data) throws IOException{
+        long jumpTo = (long) pieceIndex * chunkSize;
+        raf.seek(jumpTo);
+        raf.write(data);
+    }
+
+    public int getSizeOfThisChunk(int pieceIndex){
+        if (pieceIndex == totalChunks - 1){
+            int leftover = (int)(totalFileSize % chunkSize);
+            return leftover == 0 ? chunkSize : leftover;
+        }
+
+        return chunkSize;
+    }
+
+    public void closeUp() throws IOException{
+        raf.close();
     }
 }
