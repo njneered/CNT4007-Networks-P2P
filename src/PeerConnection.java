@@ -1,11 +1,7 @@
 import java.io.*;
 import java.net.*;
 
-/**
- * Manages the connection to a single neighboring peer.
- * Spawns a reader thread and handles sends from our side.
- * TODO: Fully implement message handling per protocol.
- */
+
 public class PeerConnection extends Thread {
 
     private final int myPeerID;
@@ -38,7 +34,6 @@ public class PeerConnection extends Thread {
             out = new DataOutputStream(socket.getOutputStream());
             in  = new DataInputStream(socket.getInputStream());
 
-            // ── Handshake ────────────────────────────────────────────────────
             if (!isIncoming) {
                 // We initiated — send first, then receive
                 Message.sendHandshake(out, myPeerID);
@@ -56,14 +51,11 @@ public class PeerConnection extends Thread {
                 return;
             }
 
-            // ── Bitfield exchange ────────────────────────────────────────────
-            // Send our bitfield if we have any pieces
             Bitfield myBf = manager.myBitfield;
             if (myBf.countPieces() > 0) {
                 send(Message.bitfield(myBf.toBytes()));
             }
 
-            // ── Message loop ─────────────────────────────────────────────────
             while (true) {
                 Message msg = Message.receive(in);
                 handleMessage(msg);

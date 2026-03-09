@@ -27,6 +27,8 @@ public class peerProcess {
             .findFirst()
             .orElseThrow(() -> new RuntimeException("Peer ID not found in PeerInfo.cfg"));
 
+        new File("out").mkdirs();
+            
         // Init logger
         Logger.init(myPeerID);
 

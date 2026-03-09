@@ -61,16 +61,19 @@ src/
 - `Bitfield.java` — bitfield data structure
 - `Logger.java` — all required log events
 - `FileManager.java` — `readPiece()`, `writePiece()`, folder creation
-- `peerProcess.java` — startup flow with `FileManager` hooked in
+- `peerProcess.java` — startup flow with `FileManager` hooked in, testd and booting clean with real config files
+- PROJECT MIDPOINT CHECK: 765 lines total as of 03/09/2026
 
 ### In Progress 
 - `PeerConnection.java` — handle REQUEST by sending piece back
 - `PeerManager.java` — preferred neighbor + optimistic unchoke timers
 
 ### Not Started 
-- `PeerManager.broadcastHave()` — notify all neighbors on piece download
-- Termination — all peers detect when everyone has the file
-- End-to-end testing with real config files
+- PeerConnection.java — handle REQUEST by reading piece from FileManager and sending it back
+- PeerConnection.java — broadcast have to all neighbors after downloading a piece
+- PeerManager.java — recalculatePreferredNeighbors() rate-based selection every p seconds
+- PeerManager.java — recalculateOptimisticNeighbor() random selection every m seconds
+- Termination — detect when all peers have the complete file and shut down cleanly
 
 ---
 
