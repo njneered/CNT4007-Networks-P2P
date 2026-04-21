@@ -45,17 +45,20 @@ public class peerProcess {
 
         // Start listening for incoming connections
         ServerSocket serverSocket = new ServerSocket(myInfo.port);
+        serverSocket.setSoTimeout(2000); // wake up every 2s to check for completion
         System.out.println("Peer " + myPeerID + " listening on port " + myInfo.port);
 
         while (true) {
-            Socket incoming = serverSocket.accept();
-            peerManager.handleIncomingConnection(incoming);
-
-            // Check if all peers are done — if so, shut down
-            if (peerManager.allPeersComplete()) {
-                Logger.log("All peers have downloaded the complete file. Shutting down.");
-                serverSocket.close();
-                break;
+            try {
+                Socket incoming = serverSocket.accept();
+                peerManager.handleIncomingConnection(incoming);
+            } catch (java.net.SocketTimeoutException e) {
+                // timed out waiting for a connection — check if we're done
+                if (peerManager.allPeersComplete()) {
+                    Logger.log("All peers have downloaded the complete file. Shutting down.");
+                    serverSocket.close();
+                    System.exit(0);
+                }
             }
         }
     }

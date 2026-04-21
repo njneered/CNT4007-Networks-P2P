@@ -87,12 +87,14 @@ public class PeerManager {
     /** Called when we receive a neighbor's bitfield */
     public void updateNeighborBitfield(int remotePeerID, Bitfield bf) {
         neighborBitfields.put(remotePeerID, bf);
+        if (bf.isComplete()) markPeerComplete(remotePeerID);
     }
 
     /** Called when a neighbor sends a 'have' message */
     public void updateNeighborHasPiece(int remotePeerID, int pieceIndex) {
-        neighborBitfields.computeIfAbsent(remotePeerID, id -> new Bitfield(cfg.totalPieces, false))
-                         .setPiece(pieceIndex);
+        Bitfield bf = neighborBitfields.computeIfAbsent(remotePeerID, id -> new Bitfield(cfg.totalPieces, false));
+        bf.setPiece(pieceIndex);
+        if (bf.isComplete()) markPeerComplete(remotePeerID);
     }
 
     /** Returns a random interesting piece from neighbor, or -1 if none */
@@ -112,6 +114,11 @@ public class PeerManager {
 
     public void markPeerComplete(int peerID) {
         completedPeers.add(peerID);
+        if (allPeersComplete()) {
+            Logger.log("All peers have downloaded the complete file. Shutting down.");
+            try { fileMgr.closeUp(); } catch (IOException ignored) {}
+            System.exit(0);
+        }
     }
 
     public CommonConfig getConfig() { return cfg; }
