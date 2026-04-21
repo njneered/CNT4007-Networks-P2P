@@ -48,6 +48,8 @@ src/
 ### Ana — Choking/Unchoking
 - `PeerManager.java` — preferred neighbor selection (rate-based)
 - `PeerManager.java` — optimistic unchoking logic
+
+### Chloe - Termination
 - Termination logic — detecting when all peers have the complete file
 
 ---
