@@ -27,17 +27,17 @@ public class FileManager{
         }
     }
 
-    public byte[] readPiece(int pieceIndex) throws IOException{
+    public synchronized byte[] readPiece(int pieceIndex) throws IOException{
         int howManyBytes = getSizeOfThisChunk(pieceIndex);
         byte[] buf = new byte[howManyBytes];
         long jumpTo = (long) pieceIndex * chunkSize;
 
         raf.seek(jumpTo);
-        raf.read(buf);
+        raf.readFully(buf);
         return buf;
     }
 
-    public void writePiece(int pieceIndex, byte[] data) throws IOException{
+    public synchronized void writePiece(int pieceIndex, byte[] data) throws IOException{
         long jumpTo = (long) pieceIndex * chunkSize;
         raf.seek(jumpTo);
         raf.write(data);

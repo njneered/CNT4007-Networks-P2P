@@ -17,7 +17,8 @@ public class PeerConnection extends Thread {
     private long bytesDownloadedThisInterval = 0;
 
     // Choke state
-    private boolean amChokedByRemote  = true;  // remote is choking us
+    private boolean amChokedByRemote   = true;  // remote is choking us
+    private boolean weAreChokingRemote = true;  // we are choking remote
     private boolean remoteIsInterested = false; // remote is interested in our data
 
     public PeerConnection(int myPeerID, int remotePeerID, Socket socket, PeerManager manager, boolean isIncoming) {
@@ -117,31 +118,29 @@ public class PeerConnection extends Thread {
                 break;
 
             case Message.REQUEST:
-                // TODO: Send the requested piece if we're not choking this peer
                 int requestedPiece = msg.getPieceIndex();
-                // FileManager.readPiece(requestedPiece) → send piece message
-                System.out.println("[TODO] Handle REQUEST for piece " + requestedPiece + " from peer " + remotePeerID);
+                if (!weAreChokingRemote) {
+                    byte[] pieceData = manager.readPiece(requestedPiece);
+                    if (pieceData != null) {
+                        send(Message.piece(requestedPiece, pieceData));
+                    }
+                }
                 break;
 
             case Message.PIECE:
-                int idx       = msg.getPieceIndex();
-                byte[] data   = msg.getPieceData();
+                int idx     = msg.getPieceIndex();
+                byte[] data = msg.getPieceData();
                 bytesDownloadedThisInterval += data.length;
-                // TODO: FileManager.writePiece(idx, data)
+                manager.writePiece(idx, data);
                 manager.myBitfield.setPiece(idx);
                 int count = manager.myBitfield.countPieces();
                 Logger.logPieceDownloaded(remotePeerID, idx, count);
-
-                // Broadcast 'have' to all neighbors
-                // TODO: manager.broadcastHave(idx);
-
-                // Check if we completed the file
+                manager.broadcastHave(idx);
+                manager.checkAndUpdateInterest();
                 if (manager.myBitfield.isComplete()) {
                     Logger.logFileComplete();
                     manager.markPeerComplete(myPeerID);
                 }
-
-                // Request next piece
                 requestNextPiece();
                 break;
         }
@@ -162,7 +161,24 @@ public class PeerConnection extends Thread {
         msg.send(out);
     }
 
+    /** Called by PeerManager to choke this remote peer (sends choke message if state changes) */
+    public synchronized void sendChoke() throws IOException {
+        if (!weAreChokingRemote) {
+            weAreChokingRemote = true;
+            send(Message.choke());
+        }
+    }
+
+    /** Called by PeerManager to unchoke this remote peer (sends unchoke message if state changes) */
+    public synchronized void sendUnchoke() throws IOException {
+        if (weAreChokingRemote) {
+            weAreChokingRemote = false;
+            send(Message.unchoke());
+        }
+    }
+
     public boolean isRemoteInterested()   { return remoteIsInterested; }
+    public boolean isWeChokingRemote()    { return weAreChokingRemote; }
     public long getBytesDownloaded()      { return bytesDownloadedThisInterval; }
     public void resetDownloadCounter()    { bytesDownloadedThisInterval = 0; }
     public int  getRemotePeerID()         { return remotePeerID; }

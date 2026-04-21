@@ -2,6 +2,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.*;
 
 /**
  * Manages all peer connections and runs the choke/unchoke logic.
@@ -25,6 +26,10 @@ public class PeerManager {
 
     // Track which peers have the complete file
     private final Set<Integer> completedPeers = ConcurrentHashMap.newKeySet();
+
+    // Choke/unchoke state
+    private final Set<Integer> preferredNeighbors = ConcurrentHashMap.newKeySet();
+    private volatile int optimisticNeighbor = -1;
 
     public PeerManager(int myPeerID, CommonConfig cfg, List<PeerInfo> peerList, FileManager fileMgr) {
         this.myPeerID = myPeerID;
@@ -111,6 +116,51 @@ public class PeerManager {
 
     public CommonConfig getConfig() { return cfg; }
 
+    /** Read a piece from disk; returns null on error */
+    public byte[] readPiece(int pieceIndex) {
+        try {
+            return fileMgr.readPiece(pieceIndex);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /** Write a piece to disk */
+    public void writePiece(int pieceIndex, byte[] data) {
+        try {
+            fileMgr.writePiece(pieceIndex, data);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /** Broadcast a 'have' message to all connected neighbors */
+    public void broadcastHave(int pieceIndex) {
+        Message haveMsg = Message.have(pieceIndex);
+        for (PeerConnection conn : connections.values()) {
+            try {
+                conn.send(haveMsg);
+            } catch (IOException ignored) {}
+        }
+    }
+
+    /**
+     * After downloading a piece, send 'not interested' to any neighbor
+     * that no longer has pieces we need.
+     */
+    public void checkAndUpdateInterest() {
+        for (Map.Entry<Integer, PeerConnection> entry : connections.entrySet()) {
+            Bitfield neighborBf = neighborBitfields.get(entry.getKey());
+            if (neighborBf == null) continue;
+            if (myBitfield.getInterestingPieces(neighborBf).isEmpty()) {
+                try {
+                    entry.getValue().send(Message.notInterested());
+                } catch (IOException ignored) {}
+            }
+        }
+    }
+
     // ── Choke/Unchoke Timers ─────────────────────────────────────────────────
 
     private void startUnchokeTimer() {
@@ -125,24 +175,73 @@ public class PeerManager {
             cfg.optimisticUnchokingInterval, cfg.optimisticUnchokingInterval, TimeUnit.SECONDS);
     }
 
-    /** TODO: Implement preferred neighbor selection based on download rates */
     private synchronized void recalculatePreferredNeighbors() {
-        // Steps:
-        // 1. Get all neighbors that are interested in our data
-        // 2. If we have the complete file: pick k randomly
-        //    Else: pick k with highest download rate (break ties randomly)
-        // 3. Send unchoke to newly preferred, choke to dropped ones
-        // 4. Log the change
-        System.out.println("[TODO] recalculatePreferredNeighbors");
+        int k = cfg.numberOfPreferredNeighbors;
+
+        // Collect all interested neighbors
+        List<PeerConnection> interested = connections.values().stream()
+            .filter(PeerConnection::isRemoteInterested)
+            .collect(Collectors.toList());
+
+        // Shuffle first so ties are broken randomly
+        Collections.shuffle(interested);
+
+        if (!myBitfield.isComplete()) {
+            // Sort descending by download rate (shuffle above handles tie-breaking)
+            interested.sort((a, b) -> Long.compare(b.getBytesDownloaded(), a.getBytesDownloaded()));
+        }
+        // If we have the complete file, the shuffled order IS the random selection
+
+        List<PeerConnection> newPreferred = interested.subList(0, Math.min(k, interested.size()));
+        Set<Integer> newPreferredIDs = newPreferred.stream()
+            .map(PeerConnection::getRemotePeerID)
+            .collect(Collectors.toSet());
+
+        // Choke peers that were preferred but no longer are (skip optimistic neighbor)
+        for (Integer peerID : new HashSet<>(preferredNeighbors)) {
+            if (!newPreferredIDs.contains(peerID) && peerID != optimisticNeighbor) {
+                PeerConnection conn = connections.get(peerID);
+                if (conn != null) {
+                    try { conn.sendChoke(); } catch (IOException ignored) {}
+                }
+            }
+        }
+
+        // Unchoke new preferred neighbors
+        for (PeerConnection conn : newPreferred) {
+            try { conn.sendUnchoke(); } catch (IOException ignored) {}
+        }
+
+        // Reset download counters for next interval
+        connections.values().forEach(PeerConnection::resetDownloadCounter);
+
+        preferredNeighbors.clear();
+        preferredNeighbors.addAll(newPreferredIDs);
+
+        Logger.logPreferredNeighbors(new ArrayList<>(newPreferredIDs));
     }
 
-    /** TODO: Implement optimistic unchoke selection */
     private synchronized void recalculateOptimisticNeighbor() {
-        // Steps:
-        // 1. Get all neighbors that are choked but interested
-        // 2. Pick one randomly
-        // 3. Send unchoke to them
-        // 4. Log the change
-        System.out.println("[TODO] recalculateOptimisticNeighbor");
+        // Candidates: choked + interested
+        List<PeerConnection> candidates = connections.values().stream()
+            .filter(c -> c.isRemoteInterested() && c.isWeChokingRemote())
+            .collect(Collectors.toList());
+
+        if (candidates.isEmpty()) return;
+
+        // Choke the previous optimistic neighbor if it's not a preferred neighbor
+        if (optimisticNeighbor != -1 && !preferredNeighbors.contains(optimisticNeighbor)) {
+            PeerConnection prev = connections.get(optimisticNeighbor);
+            if (prev != null) {
+                try { prev.sendChoke(); } catch (IOException ignored) {}
+            }
+        }
+
+        // Pick a random candidate
+        PeerConnection chosen = candidates.get(new Random().nextInt(candidates.size()));
+        optimisticNeighbor = chosen.getRemotePeerID();
+        try { chosen.sendUnchoke(); } catch (IOException ignored) {}
+
+        Logger.logOptimisticNeighbor(optimisticNeighbor);
     }
 }
