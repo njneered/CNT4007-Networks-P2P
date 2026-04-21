@@ -39,12 +39,13 @@ src/
 - `peerProcess.java` — startup flow, config loading, peer folder init
 - Making sure the program boots correctly before any messages are exchanged
 
-### Message Handling
+### Ana — Message Handling
 - `PeerConnection.java` — full message loop (request, piece, have, bitfield)
 - `Message.java` — any updates to message building/parsing
 - Broadcasting `have` messages to all neighbors after a piece is downloaded
+- `FileManager.java` — fixed thread safety and partial read bug
 
-### Choking/Unchoking
+### Ana — Choking/Unchoking
 - `PeerManager.java` — preferred neighbor selection (rate-based)
 - `PeerManager.java` — optimistic unchoking logic
 - Termination logic — detecting when all peers have the complete file
@@ -64,15 +65,13 @@ src/
 - `peerProcess.java` — startup flow with `FileManager` hooked in, testd and booting clean with real config files
 - PROJECT MIDPOINT CHECK: 765 lines total as of 03/09/2026
 
-### In Progress 
-- `PeerConnection.java` — handle REQUEST by sending piece back
-- `PeerManager.java` — preferred neighbor + optimistic unchoke timers
+### Done (Ana)
+- `PeerConnection.java` — REQUEST/PIECE handlers, have broadcasting, choke/unchoke state
+- `PeerManager.java` — preferred neighbor selection, optimistic unchoking, broadcastHave
+- `FileManager.java` — thread safety fix, readFully bug fix
+- End-to-end file transfer verified working with hash check
 
-### Not Started 
-- PeerConnection.java — handle REQUEST by reading piece from FileManager and sending it back
-- PeerConnection.java — broadcast have to all neighbors after downloading a piece
-- PeerManager.java — recalculatePreferredNeighbors() rate-based selection every p seconds
-- PeerManager.java — recalculateOptimisticNeighbor() random selection every m seconds
+### Not Started
 - Termination — detect when all peers have the complete file and shut down cleanly
 
 ---
