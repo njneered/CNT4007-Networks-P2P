@@ -31,6 +31,9 @@ public class PeerManager {
     private final Set<Integer> preferredNeighbors = ConcurrentHashMap.newKeySet();
     private volatile int optimisticNeighbor = -1;
 
+    // Track pieces already requested (to avoid requesting same piece from two peers)
+    private final Set<Integer> requestedPieces = ConcurrentHashMap.newKeySet();
+
     public PeerManager(int myPeerID, CommonConfig cfg, List<PeerInfo> peerList, FileManager fileMgr) {
         this.myPeerID = myPeerID;
         this.cfg      = cfg;
@@ -102,9 +105,16 @@ public class PeerManager {
         Bitfield neighborBf = neighborBitfields.get(remotePeerID);
         if (neighborBf == null) return -1;
         List<Integer> interesting = myBitfield.getInterestingPieces(neighborBf);
-        // TODO: also filter out pieces already requested from other neighbors
+        interesting.removeIf(requestedPieces::contains);
         if (interesting.isEmpty()) return -1;
-        return interesting.get(new Random().nextInt(interesting.size()));
+        int piece = interesting.get(new Random().nextInt(interesting.size()));
+        requestedPieces.add(piece);
+        return piece;
+    }
+
+    /** Called when a piece is received so it's no longer in-flight */
+    public void pieceReceived(int pieceIndex) {
+        requestedPieces.remove(pieceIndex);
     }
 
     /** Check if all peers in the network have completed the file */

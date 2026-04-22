@@ -132,6 +132,7 @@ public class PeerConnection extends Thread {
                 byte[] data = msg.getPieceData();
                 bytesDownloadedThisInterval += data.length;
                 manager.writePiece(idx, data);
+                manager.pieceReceived(idx);
                 manager.myBitfield.setPiece(idx);
                 int count = manager.myBitfield.countPieces();
                 Logger.logPieceDownloaded(remotePeerID, idx, count);
